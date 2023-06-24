@@ -1,7 +1,7 @@
 import { MediaObject, Notifier, NotifierOptions, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
 import sdk from '@scrypted/sdk';
 import { AddProvider } from "../../../common/src/provider-plugin";
-import { getCredentials, getCredentialsSettings } from "../../../common/src/credentials-settings";
+import { StorageSettings } from '@scrypted/sdk/storage-settings';
 
 const sounds = [
     'pushover',
@@ -41,12 +41,42 @@ const Push = require('pushover-notifications');
 const { log, mediaManager } = sdk;
 
 class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
+    storageSettings = new StorageSettings(this, {
+        username: {
+            title: 'User Key',
+        },
+        password: {
+            type: 'password',
+            title: 'Token',
+        },
+        device: {
+            title: 'Device',
+            key: 'device',
+            description: 'Send notifications to specific device. Leaving this blank will send to all devices.',
+        },
+        sound: {
+            title: 'Sound',
+            key: 'sound',
+            description: 'Notification Sound',
+            choices: sounds,
+            defaultValue: 'none',
+        },
+
+        priority: {
+            title: 'Priority',
+            key: 'priority',
+            description: 'Notification Priority',
+            choices: Object.keys(priorities),
+            defaultValue: 'Normal',
+        },
+    });
+
     constructor(nativeId: string) {
         super(nativeId);
     }
 
     async sendNotification(title: string, options?: NotifierOptions, media?: MediaObject | string, icon?: MediaObject | string): Promise<void> {
-        const { username, password } = getCredentials(this);
+        const { username, password } = this.storageSettings.values;
         const push = new Push({
             user: username,
             token: password,
@@ -62,9 +92,9 @@ class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
         const msg = {
             message: options?.body || options?.subtitle,
             title,
-            sound: this.storage.getItem('sound') || 'none',
-            device: this.storage.getItem('device'),
-            priority: priorities[this.storage.getItem('priority') || 'Normal'],
+            sound: this.storageSettings.values.sound,
+            device: this.storageSettings.values.device,
+            priority: priorities[this.storageSettings.values.priority],
             file: data ? { name: 'media.jpg', data } : undefined,
         };
 
@@ -82,39 +112,11 @@ class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
     }
 
     async getSettings(): Promise<Setting[]> {
-        const settings = getCredentialsSettings(this, {
-            userTitle: 'User',
-            passwordTitle: 'Token',
-        });
-
-        settings.push({
-            title: 'Device',
-            key: 'device',
-            description: 'Send notifications to specific device. Leaving this blank will send to all devices.',
-            value: this.storage.getItem('device'),
-        });
-
-        settings.push({
-            title: 'Sound',
-            key: 'sound',
-            description: 'Notification Sound',
-            choices: sounds,
-            value: this.storage.getItem('sound') || 'none',
-        });
-
-        settings.push({
-            title: 'Priority',
-            key: 'priority',
-            description: 'Notification Priority',
-            choices: Object.keys(priorities),
-            value: this.storage.getItem('priority') || 'Normal',
-        });
-
-        return settings;
+        return this.storageSettings.getSettings();
     }
 
     async putSetting(key: string, value: SettingValue): Promise<void> {
-        this.storage.setItem(key, value.toString());
+        return this.putSetting(key, value);
     }
 }
 

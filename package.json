@@ -30,9 +30,9 @@
       ]
    },
    "dependencies": {
-      "@scrypted/sdk": "^0.2.56",
-      "@types/node": "^16.6.1",
+      "@scrypted/sdk": "^0.2.103",
+      "@types/node": "^18.16.18",
       "pushover-notifications": "^1.2.2"
    },
-   "version": "0.0.6"
+   "version": "0.0.7"
 }
