@@ -116,7 +116,7 @@ class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
     }
 
     async putSetting(key: string, value: SettingValue): Promise<void> {
-        return this.putSetting(key, value);
+        return this.storageSettings.putSetting(key, value);
     }
 }
 
