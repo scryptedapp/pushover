@@ -88,6 +88,7 @@ class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
         if (media)
             data = await mediaManager.convertMediaObjectToBuffer(media as MediaObject, 'image/*');
 
+        const additionalProps = options?.data?.pushover ?? {};
 
         const msg = {
             message: options?.body || options?.subtitle,
@@ -96,6 +97,7 @@ class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
             device: this.storageSettings.values.device,
             priority: priorities[this.storageSettings.values.priority],
             file: data ? { name: 'media.jpg', data } : undefined,
+            ...additionalProps,
         };
 
         return new Promise((resolve, reject) => {
