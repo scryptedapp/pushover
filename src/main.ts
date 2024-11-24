@@ -1,128 +1,57 @@
-import { MediaObject, Notifier, NotifierOptions, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting, Settings, SettingValue } from '@scrypted/sdk';
-import sdk from '@scrypted/sdk';
-import { AddProvider } from "../../../common/src/provider-plugin";
-import { StorageSettings } from '@scrypted/sdk/storage-settings';
+import sdk, { DeviceCreator, DeviceCreatorSettings, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting } from "@scrypted/sdk";
+import { getNotifierStorageSettings, PushoverNotifier } from "./notifier";
+import { randomBytes } from "crypto";
+const { deviceManager } = sdk;
 
-const sounds = [
-    'pushover',
-    'bike',
-    'bugle',
-    'cashregister',
-    'classical',
-    'cosmic    ',
-    'falling',
-    'gamelan',
-    'incoming',
-    'intermission',
-    'magic',
-    'mechanical',
-    'pianobar',
-    'siren',
-    'spacealarm',
-    'tugboat',
-    'alien',
-    'climb',
-    'persistent',
-    'echo',
-    'updown',
-    'vibrate',
-    'none',
-];
+class PushoverProvider extends ScryptedDeviceBase implements DeviceCreator {
+    devices = new Map<string, any>();
 
-const priorities = {
-    'No Alert': -2,
-    'Quiet': -1,
-    'Normal': 0,
-    'High': 1,
-    'Require Confirmation': 2,
-}
-
-const Push = require('pushover-notifications');
-const { log, mediaManager } = sdk;
-
-class PushoverClient extends ScryptedDeviceBase implements Notifier, Settings {
-    storageSettings = new StorageSettings(this, {
-        username: {
-            title: 'User Key',
-        },
-        password: {
-            type: 'password',
-            title: 'Token',
-        },
-        device: {
-            title: 'Device',
-            key: 'device',
-            description: 'Send notifications to specific device. Leaving this blank will send to all devices.',
-        },
-        sound: {
-            title: 'Sound',
-            key: 'sound',
-            description: 'Notification Sound',
-            choices: sounds,
-            defaultValue: 'none',
-        },
-
-        priority: {
-            title: 'Priority',
-            key: 'priority',
-            description: 'Notification Priority',
-            choices: Object.keys(priorities),
-            defaultValue: 'Normal',
-        },
-    });
-
-    constructor(nativeId: string) {
-        super(nativeId);
+    getScryptedDeviceCreator(): string {
+        return 'Pushover notifier';
     }
 
-    async sendNotification(title: string, options?: NotifierOptions, media?: MediaObject | string, icon?: MediaObject | string): Promise<void> {
-        const { username, password } = this.storageSettings.values;
-        const push = new Push({
-            user: username,
-            token: password,
+    getDevice(nativeId: string) {
+        let ret = this.devices.get(nativeId);
+        if (!ret) {
+            ret = this.createNotifier(nativeId);
+            if (ret)
+                this.devices.set(nativeId, ret);
+        }
+        return ret;
+    }
+
+    updateDevice(nativeId: string, name: string, interfaces: string[], type?: ScryptedDeviceType) {
+        return deviceManager.onDeviceDiscovered({
+            nativeId,
+            name,
+            interfaces,
+            type: type || ScryptedDeviceType.Notifier,
+            info: deviceManager.getNativeIds().includes(nativeId) ? deviceManager.getDeviceState(nativeId)?.info : undefined,
         });
+    }
 
-        let data: Buffer;
-        if (typeof media === 'string')
-            media = await mediaManager.createMediaObjectFromUrl(media as string);
-        if (media)
-            data = await mediaManager.convertMediaObjectToBuffer(media as MediaObject, 'image/*');
+    async createDevice(settings: DeviceCreatorSettings, nativeId?: string): Promise<string> {
+        nativeId ||= randomBytes(4).toString('hex');
+        const target = settings.device || 'all devices';
+        const name = `Pushover ${target}`;
+        await this.updateDevice(nativeId, name, [ScryptedInterface.Settings, ScryptedInterface.Notifier]);
+        const device = await this.getDevice(nativeId) as PushoverNotifier;
+        nativeId = device.nativeId;
 
-        const additionalProps = options?.data?.pushover ?? {};
-
-        const msg = {
-            message: options?.body || options?.subtitle,
-            title,
-            sound: this.storageSettings.values.sound,
-            device: this.storageSettings.values.device,
-            priority: priorities[this.storageSettings.values.priority],
-            file: data ? { name: 'media.jpg', data } : undefined,
-            ...additionalProps,
-        };
-
-        return new Promise((resolve, reject) => {
-            push.send(msg, (err: Error, result: any) => {
-                if (err) {
-                    this.console.error('pushover error', err);
-                    return reject(err);
-                }
-
-                this.console.log('pushover success', result);
-                resolve();
-            })
+        Object.entries(settings).forEach(([key, value]) => {
+            device.storageSettings.values[key] = value;
         })
+
+        return nativeId;
     }
 
-    async getSettings(): Promise<Setting[]> {
-        return this.storageSettings.getSettings();
+    async getCreateDeviceSettings(): Promise<Setting[]> {
+        return await getNotifierStorageSettings(this).getSettings();
     }
 
-    async putSetting(key: string, value: SettingValue): Promise<void> {
-        return this.storageSettings.putSetting(key, value);
+    createNotifier(nativeId: string) {
+        return new PushoverNotifier(nativeId);
     }
 }
 
-export default new AddProvider(undefined, "Pushover Client", ScryptedDeviceType.Notifier, [
-    ScryptedInterface.Notifier,
-    ScryptedInterface.Settings,
-], nativeId => new PushoverClient(nativeId));
+export default PushoverProvider;

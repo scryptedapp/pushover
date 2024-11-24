@@ -23,15 +23,16 @@
    ],
    "scrypted": {
       "name": "Pushover Plugin",
-      "type": "API",
+      "type": "DeviceProvider",
       "interfaces": [
          "DeviceProvider",
+         "DeviceCreator",
          "Settings"
       ]
    },
    "dependencies": {
-      "@scrypted/sdk": "^0.2.103",
-      "@types/node": "^18.16.18",
+      "@scrypted/sdk": "0.3.87",
+      "@types/node": "^20.11.0",
       "pushover-notifications": "^1.2.2"
    },
    "version": "0.0.8"
