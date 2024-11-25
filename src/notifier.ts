@@ -1,5 +1,5 @@
 import sdk, { ScryptedDeviceBase, Notifier, Settings, NotifierOptions, MediaObject, Setting, SettingValue } from '@scrypted/sdk';
-import { StorageSettings } from '@scrypted/sdk/storage-settings';
+import { StorageSetting, StorageSettings, StorageSettingsDict } from '@scrypted/sdk/storage-settings';
 import PushoverClient from 'pushover-notifications';
 const { mediaManager } = sdk;
 
@@ -35,9 +35,11 @@ const priorities = {
     'Normal': 0,
     'High': 1,
     'Require Confirmation': 2,
-}
+};
 
-export const getNotifierStorageSettings = (extender: any) => new StorageSettings(extender, {
+type StorageSettingKeys = 'username' | 'password' | 'device' | 'sound' | 'priority';
+
+export const storageSettingsDic: StorageSettingsDict<StorageSettingKeys> = {
     username: {
         title: 'User Key',
     },
@@ -64,10 +66,10 @@ export const getNotifierStorageSettings = (extender: any) => new StorageSettings
         choices: Object.keys(priorities),
         defaultValue: 'Normal',
     },
-});
+}
 
 export class PushoverNotifier extends ScryptedDeviceBase implements Notifier, Settings {
-    storageSettings = getNotifierStorageSettings(this);
+    storageSettings = new StorageSettings(this, storageSettingsDic);
 
     constructor(nativeId: string) {
         super(nativeId);
