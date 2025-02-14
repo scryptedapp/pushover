@@ -1,5 +1,5 @@
 import sdk, { DeviceCreator, DeviceCreatorSettings, ScryptedDeviceBase, ScryptedDeviceType, ScryptedInterface, Setting } from "@scrypted/sdk";
-import { PushoverNotifier, storageSettingsDic } from "./notifier";
+import { PushoverNotifier, storageSettingsDict } from "./notifier";
 import { randomBytes } from "crypto";
 import { StorageSettings } from "@scrypted/sdk/storage-settings";
 const { deviceManager } = sdk;
@@ -48,7 +48,7 @@ class PushoverProvider extends ScryptedDeviceBase implements DeviceCreator {
 
     async getCreateDeviceSettings(): Promise<Setting[]> {
         try {
-            const storageSettings = new StorageSettings(this, storageSettingsDic);
+            const storageSettings = new StorageSettings(this, storageSettingsDict);
             return await storageSettings.getSettings();
         } catch (e) {
             this.console.log(e);

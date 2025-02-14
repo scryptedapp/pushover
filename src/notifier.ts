@@ -1,5 +1,6 @@
 import sdk, { ScryptedDeviceBase, Notifier, Settings, NotifierOptions, MediaObject, Setting, SettingValue } from '@scrypted/sdk';
 import { StorageSetting, StorageSettings, StorageSettingsDict } from '@scrypted/sdk/storage-settings';
+import { title } from 'process';
 import PushoverClient from 'pushover-notifications';
 const { mediaManager } = sdk;
 
@@ -39,7 +40,7 @@ const priorities = {
 
 type StorageSettingKeys = 'username' | 'password' | 'device' | 'sound' | 'priority';
 
-export const storageSettingsDic: StorageSettingsDict<StorageSettingKeys> = {
+export const storageSettingsDict: StorageSettingsDict<StorageSettingKeys> = {
     username: {
         title: 'User Key',
     },
@@ -65,14 +66,40 @@ export const storageSettingsDic: StorageSettingsDict<StorageSettingKeys> = {
         description: 'Notification Priority',
         choices: Object.keys(priorities),
         defaultValue: 'Normal',
+        immediate: true,
     },
 }
 
 export class PushoverNotifier extends ScryptedDeviceBase implements Notifier, Settings {
-    storageSettings = new StorageSettings(this, storageSettingsDic);
+    storageSettings = new StorageSettings(this, {
+        ...storageSettingsDict,
+        retry: {
+            title: 'Retry',
+            key: 'retry',
+            description: 'Retry time for emergency confirmation notifications in seconds.',
+            defaultValue: 60,
+        },
+        expire: {
+            title: 'Expire',
+            key: 'expire',
+            description: 'Expire time for emergency confirmation notifications in seconds.',
+            defaultValue: 300,
+        },
+    });
 
     constructor(nativeId: string) {
         super(nativeId);
+
+        this.storageSettings.settings.expire.onGet = async () => {
+            return {
+                hide: this.storageSettings.values.priority !== 'Require Confirmation',
+            };
+        };
+        this.storageSettings.settings.retry.onGet = async () => {
+            return {
+                hide: this.storageSettings.values.priority !== 'Require Confirmation',
+            };
+        };
     }
 
     async sendNotification(title: string, options?: NotifierOptions, media?: MediaObject | string, icon?: MediaObject | string): Promise<void> {
@@ -96,6 +123,8 @@ export class PushoverNotifier extends ScryptedDeviceBase implements Notifier, Se
             sound: this.storageSettings.values.sound,
             device: this.storageSettings.values.device,
             priority: priorities[this.storageSettings.values.priority],
+            expire: priorities[this.storageSettings.values.priority] === 2 ? this.storageSettings.values.expire : undefined,
+            retry: priorities[this.storageSettings.values.priority] === 2 ? this.storageSettings.values.retry : undefined,
             file: data ? { name: 'media.jpg', data } : undefined,
             ...additionalProps,
         };
